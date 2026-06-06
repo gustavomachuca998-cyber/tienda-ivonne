@@ -37,7 +37,7 @@ let usuarioActual = null;
 let productosLocales = [];
 
 // =========================================================================
-// --- OBSERVADOR DE ESTADO (BLINDADO) ---
+// --- OBSERVADOR DE ESTADO (TU CORREO SUPREMO) ---
 // =========================================================================
 onAuthStateChanged(auth, async (user) => {
     const btnUser = document.getElementById('btn-user-status');
@@ -50,19 +50,38 @@ onAuthStateChanged(auth, async (user) => {
         const nombreMostrar = user.displayName || user.email.split('@')[0];
         if (btnUser) btnUser.innerText = `👤 Hola, ${nombreMostrar}`;
         
-        // 🚀 SOLUCIÓN: Si es tu correo, te da el botón inmediatamente sin esperar a Firestore
+        // --- 🛡️ SALVAVIDAS AUTOMÁTICO PARA CLIENTES EN LA BASE DE DATOS ---
+        try {
+            const userDocRef = doc(db, "usuarios", user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            
+            // Si el usuario existe en Auth pero NO en Firestore, lo insertamos ahora mismo
+            if (!userDocSnap.exists()) {
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    nombre: nombreMostrar,
+                    correo: user.email,
+                    rol: user.email === "gustavomachuca998@gmail.com" ? "admin" : "cliente"
+                });
+            }
+        } catch (err) {
+            console.warn("Fallo al verificar o crear el perfil espejo en Firestore:", err);
+        }
+
+        // --- 🔑 FILTRO DE ACCESO EXCLUSIVO AL PANEL ---
         if (user.email === "gustavomachuca998@gmail.com") {
             if (btnAdminPanel) btnAdminPanel.style.display = "block";
             cargarUsuariosEnTiempoReal();
         } else {
-            // Verificación secundaria para otros administradores asignados por ti
+            // Verificación secundaria por si en el futuro decides ascender a alguien desde la tabla
             try {
                 const userDoc = await getDoc(doc(db, "usuarios", user.uid));
                 if (userDoc.exists() && userDoc.data().rol === "admin") {
                     if (btnAdminPanel) btnAdminPanel.style.display = "block";
+                    cargarUsuariosEnTiempoReal();
                 }
             } catch (e) {
-                console.warn("Firestore bloqueado u oculto. Modo desarrollo activo.");
+                console.warn("Acceso denegado al panel.");
             }
         }
     } else {
@@ -73,7 +92,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // =========================================================================
-// --- MONITORIZACIÓN DE PRODUCTOS (CON CAPTURA DE ERRORES) ---
+// --- MONITORIZACIÓN DE PRODUCTOS ---
 // =========================================================================
 try {
     onSnapshot(collection(db, "productos"), (snapshot) => {
@@ -83,8 +102,7 @@ try {
         });
         mostrarProductos();
     }, (error) => {
-        console.error("Falta activar las reglas de Firestore en la consola:", error);
-        mostrarProductos();
+        console.error("Falta activar las reglas de Firestore:", error);
     });
 } catch(e) {
     console.error(e);
@@ -147,7 +165,7 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
         document.getElementById('form-producto').reset();
         document.getElementById('prod-index').value = "";
     } catch (error) {
-        alert("Error de escritura en base de datos. Revisa tus Reglas de Firestore: " + error.message);
+        alert("Error de guardado: " + error.message);
     }
 });
 
@@ -181,16 +199,16 @@ window.verDetalleProducto = function(id) {
 };
 
 // =========================================================================
-// --- CONTROL DE USUARIOS MEJORADO (MUESTRA TODO CON PROTECCIÓN) ---
+// --- CONTROL DE PERSONAS (MONITOREO EN TIEMPO REAL DESDE EL NAVEGADOR) ---
 // =========================================================================
 function cargarUsuariosEnTiempoReal() {
+    const tbody = document.getElementById('tabla-usuarios-listado');
+    if (!tbody) return;
+
     try {
         onSnapshot(collection(db, "usuarios"), (snapshot) => {
-            const tbody = document.getElementById('tabla-usuarios-listado');
-            if (!tbody) return;
             tbody.innerHTML = "";
             
-            // Si realmente no hay ningún usuario en la colección de Firestore
             if (snapshot.empty) {
                 tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#999; padding:20px; font-style:italic;">No hay perfiles registrados en la base de datos todavía.</td></tr>`;
                 return;
@@ -198,33 +216,35 @@ function cargarUsuariosEnTiempoReal() {
             
             snapshot.forEach((docSnap) => {
                 const u = docSnap.data();
-                // Detecta si el usuario de la fila eres tú mismo
-                const esPropioUsuario = (u.correo === auth.currentUser.email);
+                const esPropioUsuario = (u.uid === auth.currentUser.uid || u.correo === auth.currentUser.email);
 
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = "1px solid #E1BEE7";
                 tr.innerHTML = `
-                    <td style="padding: 8px 6px;">
-                        <strong>${u.nombre} ${esPropioUsuario ? '<span style="color:#7B1FA2; font-size:11px;">(Tú)</span>' : ''}</strong><br>
-                        <span style="color:#777; font-size:11px;">${u.correo}</span>
+                    <td style="padding: 10px 6px;">
+                        <!-- Muestra solo el Nombre de Usuario en el monitoreo público -->
+                        <strong style="font-size: 13px; color: #4A148C;">${u.nombre || "Usuario Anónimo"}</strong> 
+                        ${esPropioUsuario ? '<span style="color:#7B1FA2; font-size:10px; font-weight:bold; background:#E1BEE7; padding:1px 4px; border-radius:3px;">(Tú)</span>' : ''}
                     </td>
-                    <td style="padding: 8px 6px;"><span style="padding: 2px 6px; border-radius:4px; font-weight:bold; font-size:11px; background:${u.rol === 'admin' ? '#CE93D8' : '#FFF'}; border: 1px solid #CE93D8;">${u.rol.toUpperCase()}</span></td>
-                    <td style="padding: 8px 6px; text-align: center; display:flex; gap: 4px; justify-content: center; align-items: center;">
+                    <td style="padding: 10px 6px;"><span style="padding: 2px 6px; border-radius:4px; font-weight:bold; font-size:11px; background:${u.rol === 'admin' ? '#CE93D8' : '#FFF'}; border: 1px solid #CE93D8;">${u.rol.toUpperCase()}</span></td>
+                    <td style="padding: 10px 6px; text-align: center; display:flex; gap: 4px; justify-content: center; align-items: center;">
                         ${esPropioUsuario ? `
-                            <span style="color:#888; font-size:11px; font-style:italic; padding: 4px;">Acceso Máster</span>
+                            <span style="color:#888; font-size:11px; font-style:italic; padding: 4px;">Máster</span>
                         ` : `
-                            <button class="btn-cambiar-rol" data-id="${u.uid}" data-rol="${u.rol}" title="Cambiar Rol" style="background:#4A148C; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 Rol</button>
-                            <button class="btn-reset-pass" data-email="${u.correo}" title="Restablecer Clave" style="background:#FFB300; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔑</button>
-                            <button class="btn-eliminar-usuario" data-id="${u.uid}" title="Eliminar Usuario" style="background:#E53935; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🗑️</button>
+                            <button class="btn-cambiar-rol" data-id="${u.uid}" data-rol="${u.rol}" title="Cambiar Rol" style="background:#4A148C; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 Rol</button>
+                            <button class="btn-reset-pass" data-email="${u.correo}" title="Restablecer Clave" style="background:#FFB300; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🔑</button>
+                            <button class="btn-eliminar-usuario" data-id="${u.uid}" title="Eliminar Usuario" style="background:#E53935; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🗑️</button>
                         `}
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
             declararEventosControlUsuarios();
+        }, (error) => {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#E53935; padding:15px; font-size:11px;">⚠️ Error de Permisos en Firestore Console.</td></tr>`;
         });
     } catch (err) {
-        console.warn("Error cargando usuarios: ", err);
+        console.warn("Fallo al mapear personas:", err);
     }
 }
 
@@ -241,10 +261,10 @@ function declararEventosControlUsuarios() {
     document.querySelectorAll('.btn-reset-pass').forEach(btn => {
         btn.onclick = async (e) => {
             const email = e.currentTarget.dataset.email;
-            if (confirm(`¿Enviar link de recuperación de clave a ${email}?`)) {
+            if (confirm(`¿Enviar link de recuperación de clave al correo asociado?`)) {
                 try {
                     await sendPasswordResetEmail(auth, email);
-                    alert("Enlace enviado.");
+                    alert("Enlace enviado con éxito.");
                 } catch (error) {
                     alert(error.message);
                 }
@@ -255,7 +275,7 @@ function declararEventosControlUsuarios() {
     document.querySelectorAll('.btn-eliminar-usuario').forEach(btn => {
         btn.onclick = async (e) => {
             const uid = e.currentTarget.dataset.id;
-            if (confirm("¿Eliminar perfil de usuario de la base de datos?")) {
+            if (confirm("¿Eliminar este perfil de usuario de la base de datos por completo?")) {
                 await deleteDoc(doc(db, "usuarios", uid));
             }
         };
@@ -306,7 +326,7 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
 });
 
 // =========================================================================
-// --- INTERRUPTORES DE APERTURA DEL NUEVO MENU PANEL ADMIN ---
+// --- NAVEGACIÓN Y APERTURA DE MODALES ---
 // =========================================================================
 document.getElementById('btn-admin-panel').addEventListener('click', () => {
     document.getElementById('modal-admin-dashboard').classList.remove('hide');
