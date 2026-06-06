@@ -21,6 +21,11 @@
             </div>
 
             <div class="nav-actions">
+                <!-- ❤️ BOTÓN DE MENÚ DE FAVORITOS INTEGRADO -->
+                <button id="btn-favoritos" style="background: none; border: none; font-size: 24px; cursor: pointer; position: relative; padding: 5px; display: flex; align-items: center; transition: transform 0.2s;">
+                    ❤️ <span id="fav-badge" style="position: absolute; top: -5px; right: -5px; background: #D81B60; color: white; border-radius: 50%; padding: 2px 6px; font-size: 11px; font-weight: bold; display: none;">0</span>
+                </button>
+
                 <button class="btn-nav" id="btn-user-status">👤 Mi Cuenta</button>
                 <button class="btn-admin-access" id="btn-admin-panel" style="display: none; background: #4A148C; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold;">🔑 Panel Admin</button>
             </div>
@@ -71,7 +76,7 @@
                                 <label style="font-size: 12px; font-weight: bold;">Descripción del Producto</label>
                                 <textarea id="prod-desc" required placeholder="Detalles del material, tamaño, etc..." style="width: 100%; padding: 10px; border: 1px solid #F8BBD0; border-radius: 6px; font-family: inherit; height: 70px; resize: none;"></textarea>
                             </div>
-                            <!-- 📸 NUEVO CAMPO: SELECCIÓN DE FOTO REAL -->
+                            <!-- 📸 CAMPO DE SELECCIÓN DE FOTO REAL -->
                             <div class="form-group">
                                 <label style="font-size: 12px; font-weight: bold;">Imagen de la Prenda (Opcional)</label>
                                 <input type="file" id="prod-imagen" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid #F8BBD0; border-radius: 6px; background: #fff; font-family: inherit; font-size: 12px;">
@@ -84,7 +89,7 @@
             </div>
         </div>
 
-        <!-- Modales de Autenticación de Clientes -->
+        <!-- Modales de Autenticación de Clientes (CONSERVA VISTA LOGIN Y REGISTRO) -->
         <div id="modal-auth" class="modal hide">
             <div class="modal-content">
                 <span class="close-modal">&times;</span>
@@ -112,17 +117,26 @@
             </div>
         </div>
 
-        <!-- Modal Detalle Producto -->
+        <!-- Modal Detalle Producto (SIN BOTÓN DE CARRITO) -->
         <div id="modal-detalle" class="modal hide">
             <div class="modal-content detail-layout-clean">
                 <span class="close-modal">&times;</span>
                 <div class="detail-info-centered">
-                    <!-- ID añadido para controlar dinámicamente si va emoticón o imagen real -->
                     <div id="modal-detail-media-box"></div>
                     <h2 id="modal-detail-title"></h2>
                     <p id="modal-detail-price" class="price-tag"></p>
                     <p id="modal-detail-desc" class="description-text"></p>
-                    <button class="btn-primary" id="btn-add-cart">Añadir al Carrito</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ❤️ MODAL 4: NUEVA LISTA DE FAVORITOS (CON ESTILO MATCHING RETAIL) -->
+        <div id="modal-favoritos" class="modal hide">
+            <div class="modal-content" style="max-width: 420px; border-top: 6px solid #D81B60;">
+                <span class="close-modal" id="btn-cerrar-favoritos">&times;</span>
+                <h3 style="color: #4A148C; font-family: 'Playfair Display', serif; margin-bottom: 20px; text-align: center;">❤️ Mis Favoritos</h3>
+                <div id="lista-favoritos-contenido" style="display: flex; flex-direction: column; gap: 15px; max-height: 50vh; overflow-y: auto; padding-right: 5px;">
+                    <!-- Elementos inyectados dinámicamente -->
                 </div>
             </div>
         </div>
