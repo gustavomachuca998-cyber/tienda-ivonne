@@ -5,15 +5,13 @@ import {
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
     signOut,
-    updateProfile,
-    sendPasswordResetEmail
+    updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import { 
     getFirestore, 
     doc, 
     setDoc, 
-    getDoc, 
     collection, 
     onSnapshot, 
     updateDoc, 
@@ -31,15 +29,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app); // Usamos solo Firestore (100% Gratis)
 
 let usuarioActual = null;
 let productosLocales = [];
 
+// Helper para convertir la imagen seleccionada a una cadena de texto (Base64)
+const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(archivo);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+});
+
 // =========================================================================
-// --- OBSERVADOR DE ESTADO (TU CORREO SUPREMO) ---
+// --- 🔐 CONTROL DE ACCESO ÚNICO (SOLO TÚ ERES ADMIN) ---
 // =========================================================================
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, (user) => {
     const btnUser = document.getElementById('btn-user-status');
     const btnAdminPanel = document.getElementById('btn-admin-panel');
     
@@ -50,39 +56,8 @@ onAuthStateChanged(auth, async (user) => {
         const nombreMostrar = user.displayName || user.email.split('@')[0];
         if (btnUser) btnUser.innerText = `👤 Hola, ${nombreMostrar}`;
         
-        // --- 🛡️ SALVAVIDAS AUTOMÁTICO PARA CLIENTES EN LA BASE DE DATOS ---
-        try {
-            const userDocRef = doc(db, "usuarios", user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            
-            // Si el usuario existe en Auth pero NO en Firestore, lo insertamos ahora mismo
-            if (!userDocSnap.exists()) {
-                await setDoc(userDocRef, {
-                    uid: user.uid,
-                    nombre: nombreMostrar,
-                    correo: user.email,
-                    rol: user.email === "gustavomachuca998@gmail.com" ? "admin" : "cliente"
-                });
-            }
-        } catch (err) {
-            console.warn("Fallo al verificar o crear el perfil espejo en Firestore:", err);
-        }
-
-        // --- 🔑 FILTRO DE ACCESO EXCLUSIVO AL PANEL ---
         if (user.email === "gustavomachuca998@gmail.com") {
             if (btnAdminPanel) btnAdminPanel.style.display = "block";
-            cargarUsuariosEnTiempoReal();
-        } else {
-            // Verificación secundaria por si en el futuro decides ascender a alguien desde la tabla
-            try {
-                const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-                if (userDoc.exists() && userDoc.data().rol === "admin") {
-                    if (btnAdminPanel) btnAdminPanel.style.display = "block";
-                    cargarUsuariosEnTiempoReal();
-                }
-            } catch (e) {
-                console.warn("Acceso denegado al panel.");
-            }
         }
     } else {
         usuarioActual = null;
@@ -102,7 +77,7 @@ try {
         });
         mostrarProductos();
     }, (error) => {
-        console.error("Falta activar las reglas de Firestore:", error);
+        console.error("Error en el flujo de productos:", error);
     });
 } catch(e) {
     console.error(e);
@@ -114,7 +89,7 @@ function mostrarProductos() {
     grid.innerHTML = "";
 
     if (productosLocales.length === 0) {
-        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #777; font-style: italic; padding: 40px;">No hay productos cargados en el catálogo actualmente.</p>`;
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #777; font-style: italic; padding: 40px;">No hay productos en el catálogo.</p>`;
         return;
     }
 
@@ -124,9 +99,13 @@ function mostrarProductos() {
         
         const esAdmin = usuarioActual && (usuarioActual.email === "gustavomachuca998@gmail.com");
 
+        const contenedorMultimedia = p.urlImagen 
+            ? `<img src="${p.urlImagen}" alt="${p.nombre}" style="width: 100%; height: 220px; object-fit: cover; border-radius: 12px 12px 0 0; display: block;">`
+            : `<div class="product-icon-frame">👜</div>`;
+
         card.innerHTML = `
-            <div class="product-icon-frame">👜</div>
-            <div class="product-info">
+            ${contenedorMultimedia}
+            <div class="product-info" style="padding: 15px;">
                 <h4>${p.nombre}</h4>
                 <p class="price">$${p.precio.toLocaleString('es-CL')}</p>
                 <div class="card-actions">
@@ -143,29 +122,64 @@ function mostrarProductos() {
 }
 
 // =========================================================================
-// --- MANEJO DEL FORMULARIO DE PRODUCTOS ---
+// --- GESTIÓN DEL CATÁLOGO DE PRODUCTOS (ACTUALIZADO Y PROTEGIDO) ---
 // =========================================================================
 document.getElementById('form-producto').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btnSubmit = document.getElementById('btn-submit-form');
+    
     const id = document.getElementById('prod-index').value;
     const nombre = document.getElementById('prod-nombre').value;
     const precio = parseInt(document.getElementById('prod-precio').value);
     const desc = document.getElementById('prod-desc').value;
+    const archivoImagen = document.getElementById('prod-imagen').files[0];
+
+    // 🛡️ FILTRO DE TAMAÑO: Evita que imágenes gigantes (como las de IA) bloqueen Firestore
+    if (archivoImagen && archivoImagen.size > 750000) {
+        alert("⚠️ La imagen es muy pesada para el plan gratuito. Por favor, usa una foto comprimida o de menos de 750 KB.");
+        btnSubmit.innerText = id === "" ? "Guardar en Catálogo" : "Actualizar Producto";
+        btnSubmit.disabled = false;
+        return;
+    }
+
+    btnSubmit.innerText = "Guardando artículo...";
+    btnSubmit.disabled = true;
 
     try {
+        let urlImagen = "";
+        
+        if (id !== "") {
+            const productoExistente = productosLocales.find(prod => prod.id === id);
+            if (productoExistente && productoExistente.urlImagen) {
+                urlImagen = productoExistente.urlImagen;
+            }
+        }
+
+        if (archivoImagen) {
+            urlImagen = await convertirImagenABase64(archivoImagen);
+        }
+
         if (id === "") {
             const nuevoDocRef = doc(collection(db, "productos"));
-            await setDoc(nuevoDocRef, { nombre, precio, desc });
+            await setDoc(nuevoDocRef, { nombre, precio, desc, urlImagen });
             alert("¡Bolso añadido exitosamente!");
         } else {
-            await updateDoc(doc(db, "productos", id), { nombre, precio, desc });
-            alert("¡Producto actualizado!");
-            document.getElementById('btn-submit-form').innerText = "Guardar en Catálogo";
+            await updateDoc(doc(db, "productos", id), { nombre, precio, desc, urlImagen });
+            alert("¡Producto actualizado con éxito!");
         }
+        
+        // Limpiamos el formulario
         document.getElementById('form-producto').reset();
         document.getElementById('prod-index').value = "";
+        
+        // 🚀 LA SOLUCIÓN: Cierra el panel de control automáticamente para ver los cambios reflejados
+        cerrarModales();
+
     } catch (error) {
-        alert("Error de guardado: " + error.message);
+        alert("Error al guardar: " + error.message);
+    } finally {
+        btnSubmit.innerText = "Guardar en Catálogo";
+        btnSubmit.disabled = false;
     }
 });
 
@@ -177,6 +191,9 @@ window.prepararEditar = function(id) {
     document.getElementById('prod-precio').value = p.precio;
     document.getElementById('prod-desc').value = p.desc;
     document.getElementById('btn-submit-form').innerText = "Actualizar Producto";
+    
+    // 🚀 LA LÍNEA QUE FALTA: Hace visible el panel de administración al presionar el lápiz
+    document.getElementById('modal-admin-dashboard').classList.remove('hide');
 };
 
 window.eliminarProducto = async function(id) {
@@ -192,6 +209,14 @@ window.eliminarProducto = async function(id) {
 window.verDetalleProducto = function(id) {
     const p = productosLocales.find(prod => prod.id === id);
     if (!p) return;
+    
+    const mediaBox = document.getElementById('modal-detail-media-box');
+    if (mediaBox) {
+        mediaBox.innerHTML = p.urlImagen 
+            ? `<img src="${p.urlImagen}" alt="${p.nombre}" style="width:100%; max-height:280px; object-fit:contain; border-radius:8px; margin-bottom:15px; display:block;">`
+            : `<span class="big-icon" style="font-size:55px; display:block; margin-bottom:15px; text-align:center;">👜</span>`;
+    }
+
     document.getElementById('modal-detail-title').innerText = p.nombre;
     document.getElementById('modal-detail-price').innerText = `$${p.precio.toLocaleString('es-CL')}`;
     document.getElementById('modal-detail-desc').innerText = p.desc;
@@ -199,91 +224,7 @@ window.verDetalleProducto = function(id) {
 };
 
 // =========================================================================
-// --- CONTROL DE PERSONAS (MONITOREO EN TIEMPO REAL DESDE EL NAVEGADOR) ---
-// =========================================================================
-function cargarUsuariosEnTiempoReal() {
-    const tbody = document.getElementById('tabla-usuarios-listado');
-    if (!tbody) return;
-
-    try {
-        onSnapshot(collection(db, "usuarios"), (snapshot) => {
-            tbody.innerHTML = "";
-            
-            if (snapshot.empty) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#999; padding:20px; font-style:italic;">No hay perfiles registrados en la base de datos todavía.</td></tr>`;
-                return;
-            }
-            
-            snapshot.forEach((docSnap) => {
-                const u = docSnap.data();
-                const esPropioUsuario = (u.uid === auth.currentUser.uid || u.correo === auth.currentUser.email);
-
-                const tr = document.createElement('tr');
-                tr.style.borderBottom = "1px solid #E1BEE7";
-                tr.innerHTML = `
-                    <td style="padding: 10px 6px;">
-                        <!-- Muestra solo el Nombre de Usuario en el monitoreo público -->
-                        <strong style="font-size: 13px; color: #4A148C;">${u.nombre || "Usuario Anónimo"}</strong> 
-                        ${esPropioUsuario ? '<span style="color:#7B1FA2; font-size:10px; font-weight:bold; background:#E1BEE7; padding:1px 4px; border-radius:3px;">(Tú)</span>' : ''}
-                    </td>
-                    <td style="padding: 10px 6px;"><span style="padding: 2px 6px; border-radius:4px; font-weight:bold; font-size:11px; background:${u.rol === 'admin' ? '#CE93D8' : '#FFF'}; border: 1px solid #CE93D8;">${u.rol.toUpperCase()}</span></td>
-                    <td style="padding: 10px 6px; text-align: center; display:flex; gap: 4px; justify-content: center; align-items: center;">
-                        ${esPropioUsuario ? `
-                            <span style="color:#888; font-size:11px; font-style:italic; padding: 4px;">Máster</span>
-                        ` : `
-                            <button class="btn-cambiar-rol" data-id="${u.uid}" data-rol="${u.rol}" title="Cambiar Rol" style="background:#4A148C; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 Rol</button>
-                            <button class="btn-reset-pass" data-email="${u.correo}" title="Restablecer Clave" style="background:#FFB300; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🔑</button>
-                            <button class="btn-eliminar-usuario" data-id="${u.uid}" title="Eliminar Usuario" style="background:#E53935; color:#fff; border:none; padding:5px 7px; border-radius:4px; cursor:pointer; font-size:11px;">🗑️</button>
-                        `}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            declararEventosControlUsuarios();
-        }, (error) => {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#E53935; padding:15px; font-size:11px;">⚠️ Error de Permisos en Firestore Console.</td></tr>`;
-        });
-    } catch (err) {
-        console.warn("Fallo al mapear personas:", err);
-    }
-}
-
-function declararEventosControlUsuarios() {
-    document.querySelectorAll('.btn-cambiar-rol').forEach(btn => {
-        btn.onclick = async (e) => {
-            const uid = e.currentTarget.dataset.id;
-            const rolActual = e.currentTarget.dataset.rol;
-            const nuevoRol = rolActual === "admin" ? "cliente" : "admin";
-            await updateDoc(doc(db, "usuarios", uid), { rol: nuevoRol });
-        };
-    });
-
-    document.querySelectorAll('.btn-reset-pass').forEach(btn => {
-        btn.onclick = async (e) => {
-            const email = e.currentTarget.dataset.email;
-            if (confirm(`¿Enviar link de recuperación de clave al correo asociado?`)) {
-                try {
-                    await sendPasswordResetEmail(auth, email);
-                    alert("Enlace enviado con éxito.");
-                } catch (error) {
-                    alert(error.message);
-                }
-            }
-        };
-    });
-
-    document.querySelectorAll('.btn-eliminar-usuario').forEach(btn => {
-        btn.onclick = async (e) => {
-            const uid = e.currentTarget.dataset.id;
-            if (confirm("¿Eliminar este perfil de usuario de la base de datos por completo?")) {
-                await deleteDoc(doc(db, "usuarios", uid));
-            }
-        };
-    });
-}
-
-// =========================================================================
-// --- REGISTRO DE CLIENTES ---
+// --- AUTENTICACIÓN SIMPLIFICADA DE USUARIOS ---
 // =========================================================================
 document.getElementById('form-register').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -294,13 +235,6 @@ document.getElementById('form-register').addEventListener('submit', async (e) =>
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: displayName });
-
-        await setDoc(doc(db, "usuarios", userCredential.user.uid), {
-            uid: userCredential.user.uid,
-            nombre: displayName,
-            correo: email,
-            rol: "cliente"
-        });
 
         alert(`¡Cuenta creada con éxito!`);
         cerrarModales();
@@ -326,7 +260,7 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
 });
 
 // =========================================================================
-// --- NAVEGACIÓN Y APERTURA DE MODALES ---
+// --- NAVEGACIÓN GENERAL Y MODALES ---
 // =========================================================================
 document.getElementById('btn-admin-panel').addEventListener('click', () => {
     document.getElementById('modal-admin-dashboard').classList.remove('hide');
