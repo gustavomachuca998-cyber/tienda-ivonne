@@ -33,12 +33,11 @@ const db = getFirestore(app);
 
 let usuarioActual = null;
 let productosLocales = [];
-// Ahora la variable inicia vacía y se llena dinámicamente según el estado de autenticación
 let favoritos = [];
 
-// 🔒 Función clave para determinar en qué "cajón" del navegador guardar los favoritos
+// Retorna la clave única basada en el UID de Firebase
 function obtenerStorageKey() {
-    return usuarioActual ? `favoritos_${usuarioActual.uid}` : 'favoritos_invitado';
+    return usuarioActual ? `favoritos_${usuarioActual.uid}` : null;
 }
 
 const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
@@ -49,7 +48,7 @@ const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
 });
 
 // =========================================================================
-// --- 🔐 CONTROL DE ACCESO Y REFRESCO DE FAVORITOS POR CUENTA ---
+// --- 🔐 CONTROL DE ACCESO Y AISLAMIENTO DE FAVORITOS ---
 // =========================================================================
 onAuthStateChanged(auth, (user) => {
     const btnUser = document.getElementById('btn-user-status');
@@ -65,13 +64,17 @@ onAuthStateChanged(auth, (user) => {
         if (user.email === "gustavomachuca998@gmail.com") {
             if (btnAdminPanel) btnAdminPanel.style.display = "block";
         }
+        
+        // Carga los favoritos de este usuario específico
+        favoritos = JSON.parse(localStorage.getItem(obtenerStorageKey())) || [];
     } else {
         usuarioActual = null;
         if (btnUser) btnUser.innerText = "👤 Mi Cuenta";
+        
+        // 🛡️ LIMPIEZA TOTAL: Si no está logueado, su lista en memoria queda totalmente vacía
+        favoritos = []; 
     }
 
-    // 🔄 REFRESCO CRUCIAL: Al cambiar de usuario, cargamos inmediatamente SUS favoritos correspondientes
-    favoritos = JSON.parse(localStorage.getItem(obtenerStorageKey())) || [];
     mostrarProductos(); 
 });
 
@@ -138,10 +141,19 @@ function mostrarProductos() {
 }
 
 // =========================================================================
-// --- LÓGICA DEL SISTEMA DE FAVORITOS PERSONALIZADOS ---
+// --- LÓGICA DEL SISTEMA DE FAVORITOS (CON FILTROS DE PRIVACIDAD) ---
 // =========================================================================
 window.toggleFavorito = function(id, event) {
     if(event) event.stopPropagation();
+    
+    // 🛡️ REGLA DE ORO: Si no hay cuenta, no se puede agregar nada. Abre el Login.
+    if (!usuarioActual) {
+        alert("⚠️ Debes iniciar sesión con tu cuenta para guardar productos en tus favoritos.");
+        document.getElementById('modal-auth').classList.remove('hide');
+        document.getElementById('login-view').classList.remove('hide');
+        document.getElementById('register-view').classList.add('hide');
+        return;
+    }
     
     const index = favoritos.indexOf(id);
     if (index === -1) {
@@ -150,7 +162,7 @@ window.toggleFavorito = function(id, event) {
         favoritos.splice(index, 1);
     }
     
-    // Guardamos usando la clave segmentada por el usuario activo
+    // Guarda directamente en el espacio aislado de esta cuenta
     localStorage.setItem(obtenerStorageKey(), JSON.stringify(favoritos));
     mostrarProductos();
     
@@ -162,7 +174,9 @@ window.toggleFavorito = function(id, event) {
 function actualizarBadgeFavoritos() {
     const badge = document.getElementById('fav-badge');
     if(!badge) return;
-    if(favoritos.length > 0) {
+    
+    // Si no está logueado o no tiene ítems, el badge se esconde de inmediato
+    if(usuarioActual && favoritos.length > 0) {
         badge.innerText = favoritos.length;
         badge.style.display = "block";
     } else {
@@ -174,6 +188,12 @@ function renderizarListaFavoritos() {
     const contenedor = document.getElementById('lista-favoritos-contenido');
     if(!contenedor) return;
     contenedor.innerHTML = "";
+
+    // Evita renderizar elementos si es una navegación anónima
+    if (!usuarioActual) {
+        contenedor.innerHTML = `<p style="text-align: center; color: #999; font-style: italic; padding: 20px 0;">Inicia sesión para ver tu lista.</p>`;
+        return;
+    }
 
     const itemsFavoritos = productosLocales.filter(p => favoritos.includes(p.id));
 
@@ -209,6 +229,12 @@ window.verDetalleDesdeFav = function(id) {
 };
 
 document.getElementById('btn-favoritos').addEventListener('click', () => {
+    // Al abrir el modal, si no está logueado, lo redirecciona a identificarse
+    if(!usuarioActual){
+        alert("⚠️ Debes iniciar sesión para acceder a tu panel de favoritos.");
+        document.getElementById('modal-auth').classList.remove('hide');
+        return;
+    }
     renderizarListaFavoritos();
     document.getElementById('modal-favoritos').classList.remove('hide');
 });
@@ -359,7 +385,9 @@ document.getElementById('btn-cerrar-admin-dashboard').addEventListener('click', 
 if(document.getElementById('btn-user-status')) {
     document.getElementById('btn-user-status').addEventListener('click', () => {
         if (usuarioActual) {
-            if (confirm("¿Quieres cerrar sesión?")) signOut(auth);
+            if (confirm("¿Quieres cerrar sesión?")) {
+                signOut(auth);
+            }
         } else {
             document.getElementById('modal-auth').classList.remove('hide');
             document.getElementById('login-view').classList.remove('hide');
