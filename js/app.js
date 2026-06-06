@@ -33,8 +33,13 @@ const db = getFirestore(app);
 
 let usuarioActual = null;
 let productosLocales = [];
-// Inicialización del arreglo global de Favoritos desde localStorage
-let favoritos = JSON.parse(localStorage.getItem('tienda_favoritos')) || [];
+// Ahora la variable inicia vacía y se llena dinámicamente según el estado de autenticación
+let favoritos = [];
+
+// 🔒 Función clave para determinar en qué "cajón" del navegador guardar los favoritos
+function obtenerStorageKey() {
+    return usuarioActual ? `favoritos_${usuarioActual.uid}` : 'favoritos_invitado';
+}
 
 const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -44,7 +49,7 @@ const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
 });
 
 // =========================================================================
-// --- 🔐 CONTROL DE ACCESO ÚNICO (SOLO TÚ ERES ADMIN) ---
+// --- 🔐 CONTROL DE ACCESO Y REFRESCO DE FAVORITOS POR CUENTA ---
 // =========================================================================
 onAuthStateChanged(auth, (user) => {
     const btnUser = document.getElementById('btn-user-status');
@@ -64,6 +69,9 @@ onAuthStateChanged(auth, (user) => {
         usuarioActual = null;
         if (btnUser) btnUser.innerText = "👤 Mi Cuenta";
     }
+
+    // 🔄 REFRESCO CRUCIAL: Al cambiar de usuario, cargamos inmediatamente SUS favoritos correspondientes
+    favoritos = JSON.parse(localStorage.getItem(obtenerStorageKey())) || [];
     mostrarProductos(); 
 });
 
@@ -99,7 +107,7 @@ function mostrarProductos() {
     productosLocales.forEach((p) => {
         const card = document.createElement('div');
         card.className = "product-card";
-        card.style.position = "relative"; // Necesario para posicionar de forma flotante el corazón
+        card.style.position = "relative";
         
         const esAdmin = usuarioActual && (usuarioActual.email === "gustavomachuca998@gmail.com");
         const esFav = favoritos.includes(p.id);
@@ -109,7 +117,6 @@ function mostrarProductos() {
             : `<div class="product-icon-frame">👜</div>`;
 
         card.innerHTML = `
-            <!-- ❤️ BOTÓN FLOTANTE DE FAVORITOS EN LA ESQUINA DE LA TARJETA -->
             <button class="btn-toggle-fav" onclick="toggleFavorito('${p.id}', event)" style="position: absolute; top: 12px; right: 12px; background: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; font-size: 18px; z-index: 10; transition: transform 0.2s;">
                 ${esFav ? '❤️' : '🤍'}
             </button>
@@ -131,7 +138,7 @@ function mostrarProductos() {
 }
 
 // =========================================================================
-// --- LÓGICA DEL SISTEMA DE FAVORITOS ---
+// --- LÓGICA DEL SISTEMA DE FAVORITOS PERSONALIZADOS ---
 // =========================================================================
 window.toggleFavorito = function(id, event) {
     if(event) event.stopPropagation();
@@ -143,7 +150,8 @@ window.toggleFavorito = function(id, event) {
         favoritos.splice(index, 1);
     }
     
-    localStorage.setItem('tienda_favoritos', JSON.stringify(favoritos));
+    // Guardamos usando la clave segmentada por el usuario activo
+    localStorage.setItem(obtenerStorageKey(), JSON.stringify(favoritos));
     mostrarProductos();
     
     if(!document.getElementById('modal-favoritos').classList.contains('hide')) {
@@ -200,14 +208,13 @@ window.verDetalleDesdeFav = function(id) {
     verDetalleProducto(id);
 };
 
-// Eventos de control del modal de Favoritos
 document.getElementById('btn-favoritos').addEventListener('click', () => {
     renderizarListaFavoritos();
     document.getElementById('modal-favoritos').classList.remove('hide');
 });
 
 // =========================================================================
-// --- GESTIÓN DEL CATÁLOGO DE PRODUCTOS (CONSERVADO COMPLETO) ---
+// --- GESTIÓN DEL CATÁLOGO DE PRODUCTOS ---
 // =========================================================================
 document.getElementById('form-producto').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -220,7 +227,7 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
     const archivoImagen = document.getElementById('prod-imagen').files[0];
 
     if (archivoImagen && archivoImagen.size > 750000) {
-        alert("⚠️ La imagen es muy pesada para el plan gratuito. Por favor, usa una foto comprimida o de menos de 750 KB.");
+        alert("⚠️ La imagen es muy pesada. Por favor, usa una foto comprimida o de menos de 750 KB.");
         btnSubmit.innerText = id === "" ? "Guardar en Catálogo" : "Actualizar Producto";
         btnSubmit.disabled = false;
         return;
@@ -303,7 +310,7 @@ window.verDetalleProducto = function(id) {
 };
 
 // =========================================================================
-// --- AUTENTICACIÓN SIMPLIFICADA DE USUARIOS ---
+// --- AUTENTICACIÓN DE USUARIOS ---
 // =========================================================================
 document.getElementById('form-register').addEventListener('submit', async (e) => {
     e.preventDefault();
