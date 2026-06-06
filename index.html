@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ivonne - Bolsos & Accesorios</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -14,13 +16,14 @@
             <div class="logo">Ivonne <span>Bolsos & Moda</span></div>
             
             <div class="search-bar">
-                <input type="text" id="search-input" placeholder="Buscar carteras, mochilas, accesorios..." onkeyup="filtrarProductos()">
+                <input type="text" id="search-input" placeholder="Buscar carteras, mochilas, accesorios...">
                 <button class="btn-search">🔍</button>
             </div>
 
             <div class="nav-actions">
-                <button class="btn-nav" onclick="abrirAuth('login')">👤 Mi Cuenta</button>
-                <button class="btn-admin-access" onclick="mostrarLoginAdmin()">🔑 Panel Admin</button>
+                <button class="btn-nav" id="btn-user-status">👤 Mi Cuenta</button>
+                <!-- Botón solicitado: Panel Admin -->
+                <button class="btn-admin-access" id="btn-admin-panel" style="display: none; background: #4A148C; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold;">🔑 Panel Admin</button>
             </div>
         </div>
     </nav>
@@ -33,90 +36,107 @@
         </div>
     </header>
 
-    <main class="main-container" id="tienda-seccion">
-        
-        <section id="panel-admin" class="admin-section hide">
-            <div class="admin-card">
-                <div class="admin-header">
-                    <h2>⚙️ Panel de Control de Inventario (Mamá)</h2>
-                    <button class="btn-close-admin" onclick="cerrarPanelAdmin()">Cerrar Panel ❌</button>
-                </div>
-                <p class="admin-subtitle">Desde aquí puedes añadir nuevos artículos o editar los precios del catálogo en tiempo real.</p>
-                
-                <form id="form-producto" class="admin-form" onsubmit="guardarProducto(event)">
-                    <input type="hidden" id="prod-index">
-                    <div class="form-group">
-                        <label>Nombre del Producto</label>
-                        <input type="text" id="prod-nombre" required placeholder="Ej. Cartera Cuero Italiana">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio ($)</label>
-                        <input type="number" id="prod-precio" required placeholder="Ej. 39990">
-                    </div>
-                    <div class="form-group">
-                        <label>Descripción</label>
-                        <textarea id="prod-desc" required placeholder="Detalles de materiales, bolsillos, cierres..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>URL de la Imagen</label>
-                        <input type="url" id="prod-img" required placeholder="https://ejemplo.com/imagen.jpg">
-                    </div>
-                    <button type="submit" id="btn-submit-form" class="btn-admin-submit">Añadir al Catálogo</button>
-                </form>
-            </div>
-        </section>
+    <main class="main-container">
 
-        <section class="store-section">
+        <!-- Grilla de Tienda Principal -->
+        <section id="tienda-seccion" class="store-section" style="margin-top: 40px;">
             <h2 class="section-title">Nuestros Productos</h2>
-            <div id="tienda-grid" class="product-grid"></div>
+            <div id="contenedor-productos" class="product-grid"></div>
         </section>
 
-        <div id="auth-modal" class="modal hide">
+        <!-- ========================================================================= -->
+        <!-- 🚨 NUEVO MENÚ: MODAL DASHBOARD DE ADMINISTRACIÓN (PRODUCTOS Y PERSONAS) 🚨 -->
+        <!-- ========================================================================= -->
+        <div id="modal-admin-dashboard" class="modal hide">
+            <div class="modal-content" style="max-width: 850px; width: 95%; border-top: 6px solid #4A148C;">
+                <span class="close-modal" id="btn-cerrar-admin-dashboard" style="font-size: 28px;">&times;</span>
+                <h2 style="color: #4A148C; font-family: 'Playfair Display', serif; margin-bottom: 5px;">⚙️ Panel de Control Principal</h2>
+                <p style="color: #666; font-size: 13px; margin-bottom: 20px;">Gestión global de inventario de bolsos y control de accesos de usuarios.</p>
+                
+                <div class="admin-grid-layout" style="display: flex; gap: 25px; flex-wrap: wrap;">
+                    
+                    <!-- BLOQUE A: Gestión de Catálogo -->
+                    <div style="flex: 1; min-width: 300px; background: #F9F5FB; padding: 20px; border-radius: 8px; border: 1px solid #E1BEE7;">
+                        <h3 style="margin-bottom: 15px; font-size: 16px; color: #311B92;">👜 Añadir / Editar Artículo</h3>
+                        <form id="form-producto" style="display: flex; flex-direction: column; gap: 12px;">
+                            <input type="hidden" id="prod-index">
+                            <div class="form-group">
+                                <label style="font-size: 12px; font-weight: bold;">Nombre de la Cartera</label>
+                                <input type="text" id="prod-nombre" required placeholder="Ej. Cartera Gourmet Premium" style="margin-bottom: 0; padding: 10px;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 12px; font-weight: bold;">Precio de Venta ($)</label>
+                                <input type="number" id="prod-precio" required placeholder="Ej. 12500" style="margin-bottom: 0; padding: 10px;">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 12px; font-weight: bold;">Descripción del Producto</label>
+                                <textarea id="prod-desc" required placeholder="Detalles del material, tamaño, etc..." style="width: 100%; padding: 10px; border: 1px solid #F8BBD0; border-radius: 6px; font-family: inherit; height: 70px; resize: none;"></textarea>
+                            </div>
+                            <button type="submit" id="btn-submit-form" class="btn-primary" style="background: #4A148C; width: 100%; padding: 12px;">Guardar en Catálogo</button>
+                        </form>
+                    </div>
+
+                    <!-- BLOQUE B: Gestión de Personas -->
+                    <div style="flex: 1; min-width: 300px; background: #FFF5F7; padding: 20px; border-radius: 8px; border: 1px solid #F8BBD0;">
+                        <h3 style="margin-bottom: 15px; font-size: 16px; color: #D81B60;">👥 Control de Personas y Permisos</h3>
+                        <div style="max-height: 240px; overflow-y: auto; background: white; border: 1px solid #F8BBD0; border-radius: 6px; padding: 5px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #D81B60; color: #D81B60; font-weight: bold;">
+                                        <th style="padding: 6px;">Usuario / Email</th>
+                                        <th style="padding: 6px;">Rol</th>
+                                        <th style="padding: 6px; text-align: center;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-usuarios-listado">
+                                    <!-- Cargado dinámicamente desde Firebase -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Modales de Autenticación de Clientes -->
+        <div id="modal-auth" class="modal hide">
             <div class="modal-content">
-                <span class="close-modal" onclick="cerrarModales()">&times;</span>
+                <span class="close-modal">&times;</span>
                 
                 <div id="login-view">
                     <h3>Ingresar a mi Cuenta</h3>
-                    <input type="email" placeholder="Correo Electrónico" required>
-                    <input type="password" placeholder="Contraseña" required>
-                    <button class="btn-primary w-100" onclick="simularLoginCliente()">Iniciar Sesión</button>
-                    <p class="auth-switch">¿No tienes cuenta? <a href="#" onclick="abrirAuth('registro')">Regístrate aquí</a></p>
+                    <form id="form-login">
+                        <input type="email" id="login-email" placeholder="Correo Electrónico" required>
+                        <input type="password" id="login-password" placeholder="Contraseña" required>
+                        <button type="submit" class="btn-primary w-100">Iniciar Sesión</button>
+                    </form>
+                    <p class="auth-switch">¿No tienes cuenta? <a href="#" id="link-to-register">Regístrate aquí</a></p>
                 </div>
 
                 <div id="register-view" class="hide">
                     <h3>Registro de Cliente</h3>
-                    <input type="text" placeholder="Nombre y Apellido" required>
-                    <input type="email" placeholder="Correo Electrónico" required>
-                    <input type="password" placeholder="Crea una Contraseña" required>
-                    <button class="btn-primary w-100" onclick="simularRegistroCliente()">Crear Cuenta</button>
-                    <p class="auth-switch">¿Ya tienes cuenta? <a href="#" onclick="abrirAuth('login')">Inicia sesión</a></p>
+                    <form id="form-register">
+                        <input type="text" id="register-name" placeholder="Nombre Completo o de Usuario" required>
+                        <input type="email" id="register-email" placeholder="Correo Electrónico" required>
+                        <input type="password" id="register-password" placeholder="Crea una Contraseña (mín. 6 caracteres)" required>
+                        <button type="submit" class="btn-primary w-100">Crear Cuenta</button>
+                    </form>
+                    <p class="auth-switch">¿Ya tienes cuenta? <a href="#" id="link-to-login">Inicia sesión</a></p>
                 </div>
             </div>
         </div>
 
-        <div id="admin-login-modal" class="modal hide">
-            <div class="modal-content admin-border">
-                <span class="close-modal" onclick="cerrarModales()">&times;</span>
-                <h3>Seguridad del Administrador</h3>
-                <p style="font-size: 13px; margin-bottom: 15px; color: #666;">Ingresa la clave maestra para gestionar la tienda.</p>
-                <input type="password" id="admin-password" placeholder="Contraseña de Administrador">
-                <button class="btn-admin-submit w-100" onclick="verificarPasswordAdmin()">Verificar Identidad</button>
-            </div>
-        </div>
-
-        <div id="detalle-modal" class="modal hide">
-            <div class="modal-content detail-layout">
-                <span class="close-modal" onclick="cerrarModales()">&times;</span>
-                <div class="detail-grid">
-                    <div class="detail-img-container">
-                        <img id="det-img" src="" alt="Producto">
-                    </div>
-                    <div class="detail-info">
-                        <h2 id="det-nombre"></h2>
-                        <p id="det-precio" class="price-tag"></p>
-                        <p id="det-descripcion" class="description-text"></p>
-                        <button class="btn-primary" onclick="alert('¡Añadido al carrito de compras (Simulación)!')">Añadir al Carrito</button>
-                    </div>
+        <!-- Modal Detalle Producto -->
+        <div id="modal-detalle" class="modal hide">
+            <div class="modal-content detail-layout-clean">
+                <span class="close-modal">&times;</span>
+                <div class="detail-info-centered">
+                    <span class="big-icon">👜</span>
+                    <h2 id="modal-detail-title"></h2>
+                    <p id="modal-detail-price" class="price-tag"></p>
+                    <p id="modal-detail-desc" class="description-text"></p>
+                    <button class="btn-primary" id="btn-add-cart">Añadir al Carrito</button>
                 </div>
             </div>
         </div>
@@ -127,6 +147,6 @@
         <p>&copy; 2026 Emprendimiento Ivonne - Diseñado con amor y código profesional.</p>
     </footer>
 
-    <script src="js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
