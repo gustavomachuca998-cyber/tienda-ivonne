@@ -29,12 +29,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app); // Usamos solo Firestore (100% Gratis)
+const db = getFirestore(app);
 
 let usuarioActual = null;
 let productosLocales = [];
+// Inicialización del arreglo global de Favoritos desde localStorage
+let favoritos = JSON.parse(localStorage.getItem('tienda_favoritos')) || [];
 
-// Helper para convertir la imagen seleccionada a una cadena de texto (Base64)
 const convertirImagenABase64 = (archivo) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(archivo);
@@ -88,6 +89,8 @@ function mostrarProductos() {
     if (!grid) return;
     grid.innerHTML = "";
 
+    actualizarBadgeFavoritos();
+
     if (productosLocales.length === 0) {
         grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #777; font-style: italic; padding: 40px;">No hay productos en el catálogo.</p>`;
         return;
@@ -96,14 +99,20 @@ function mostrarProductos() {
     productosLocales.forEach((p) => {
         const card = document.createElement('div');
         card.className = "product-card";
+        card.style.position = "relative"; // Necesario para posicionar de forma flotante el corazón
         
         const esAdmin = usuarioActual && (usuarioActual.email === "gustavomachuca998@gmail.com");
+        const esFav = favoritos.includes(p.id);
 
         const contenedorMultimedia = p.urlImagen 
             ? `<img src="${p.urlImagen}" alt="${p.nombre}" style="width: 100%; height: 220px; object-fit: cover; border-radius: 12px 12px 0 0; display: block;">`
             : `<div class="product-icon-frame">👜</div>`;
 
         card.innerHTML = `
+            <!-- ❤️ BOTÓN FLOTANTE DE FAVORITOS EN LA ESQUINA DE LA TARJETA -->
+            <button class="btn-toggle-fav" onclick="toggleFavorito('${p.id}', event)" style="position: absolute; top: 12px; right: 12px; background: white; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; font-size: 18px; z-index: 10; transition: transform 0.2s;">
+                ${esFav ? '❤️' : '🤍'}
+            </button>
             ${contenedorMultimedia}
             <div class="product-info" style="padding: 15px;">
                 <h4>${p.nombre}</h4>
@@ -122,7 +131,83 @@ function mostrarProductos() {
 }
 
 // =========================================================================
-// --- GESTIÓN DEL CATÁLOGO DE PRODUCTOS (ACTUALIZADO Y PROTEGIDO) ---
+// --- LÓGICA DEL SISTEMA DE FAVORITOS ---
+// =========================================================================
+window.toggleFavorito = function(id, event) {
+    if(event) event.stopPropagation();
+    
+    const index = favoritos.indexOf(id);
+    if (index === -1) {
+        favoritos.push(id);
+    } else {
+        favoritos.splice(index, 1);
+    }
+    
+    localStorage.setItem('tienda_favoritos', JSON.stringify(favoritos));
+    mostrarProductos();
+    
+    if(!document.getElementById('modal-favoritos').classList.contains('hide')) {
+        renderizarListaFavoritos();
+    }
+};
+
+function actualizarBadgeFavoritos() {
+    const badge = document.getElementById('fav-badge');
+    if(!badge) return;
+    if(favoritos.length > 0) {
+        badge.innerText = favoritos.length;
+        badge.style.display = "block";
+    } else {
+        badge.style.display = "none";
+    }
+}
+
+function renderizarListaFavoritos() {
+    const contenedor = document.getElementById('lista-favoritos-contenido');
+    if(!contenedor) return;
+    contenedor.innerHTML = "";
+
+    const itemsFavoritos = productosLocales.filter(p => favoritos.includes(p.id));
+
+    if(itemsFavoritos.length === 0) {
+        contenedor.innerHTML = `<p style="text-align: center; color: #999; font-style: italic; padding: 20px 0;">No tienes artículos guardados todavía.</p>`;
+        return;
+    }
+
+    itemsFavoritos.forEach(p => {
+        const itemRow = document.createElement('div');
+        itemRow.style = "display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;";
+        
+        const imgTag = p.urlImagen 
+            ? `<img src="${p.urlImagen}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">`
+            : `<div style="font-size: 24px; width: 50px; text-align: center;">👜</div>`;
+
+        itemRow.innerHTML = `
+            ${imgTag}
+            <div style="flex: 1; min-width: 0;">
+                <h4 style="margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.nombre}</h4>
+                <p style="margin: 3px 0 0 0; color: #D81B60; font-weight: bold; font-size: 13px;">$${p.precio.toLocaleString('es-CL')}</p>
+            </div>
+            <button onclick="verDetalleDesdeFav('${p.id}')" style="background: #4A148C; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; font-weight: bold;">Ver</button>
+            <button onclick="toggleFavorito('${p.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px;">❌</button>
+        `;
+        contenedor.appendChild(itemRow);
+    });
+}
+
+window.verDetalleDesdeFav = function(id) {
+    document.getElementById('modal-favoritos').classList.add('hide');
+    verDetalleProducto(id);
+};
+
+// Eventos de control del modal de Favoritos
+document.getElementById('btn-favoritos').addEventListener('click', () => {
+    renderizarListaFavoritos();
+    document.getElementById('modal-favoritos').classList.remove('hide');
+});
+
+// =========================================================================
+// --- GESTIÓN DEL CATÁLOGO DE PRODUCTOS (CONSERVADO COMPLETO) ---
 // =========================================================================
 document.getElementById('form-producto').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -134,7 +219,6 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
     const desc = document.getElementById('prod-desc').value;
     const archivoImagen = document.getElementById('prod-imagen').files[0];
 
-    // 🛡️ FILTRO DE TAMAÑO: Evita que imágenes gigantes (como las de IA) bloqueen Firestore
     if (archivoImagen && archivoImagen.size > 750000) {
         alert("⚠️ La imagen es muy pesada para el plan gratuito. Por favor, usa una foto comprimida o de menos de 750 KB.");
         btnSubmit.innerText = id === "" ? "Guardar en Catálogo" : "Actualizar Producto";
@@ -168,11 +252,8 @@ document.getElementById('form-producto').addEventListener('submit', async (e) =>
             alert("¡Producto actualizado con éxito!");
         }
         
-        // Limpiamos el formulario
         document.getElementById('form-producto').reset();
         document.getElementById('prod-index').value = "";
-        
-        // 🚀 LA SOLUCIÓN: Cierra el panel de control automáticamente para ver los cambios reflejados
         cerrarModales();
 
     } catch (error) {
@@ -191,8 +272,6 @@ window.prepararEditar = function(id) {
     document.getElementById('prod-precio').value = p.precio;
     document.getElementById('prod-desc').value = p.desc;
     document.getElementById('btn-submit-form').innerText = "Actualizar Producto";
-    
-    // 🚀 LA LÍNEA QUE FALTA: Hace visible el panel de administración al presionar el lápiz
     document.getElementById('modal-admin-dashboard').classList.remove('hide');
 };
 
@@ -298,6 +377,7 @@ window.cerrarModales = function() {
     document.getElementById('modal-auth').classList.add('hide');
     document.getElementById('modal-detalle').classList.add('hide');
     document.getElementById('modal-admin-dashboard').classList.add('hide');
+    document.getElementById('modal-favoritos').classList.add('hide');
 };
 
 document.querySelectorAll('.close-modal').forEach(btn => {
