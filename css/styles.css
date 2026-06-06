@@ -7,7 +7,12 @@
 
 body { 
     font-family: 'Montserrat', sans-serif; 
-    background-color: #FFF5F7; /* Fondo rosa pastel sutil, muy limpio */
+    
+    /* Llamamos a la imagen SVG que acabas de crear */
+    background-image: url('../fondo-pinterest.svg'); /* Ajusta la ruta según dónde guardaste el archivo */
+    background-repeat: repeat; /* Se repite infinitamente como un tapiz de tienda */
+    background-attachment: fixed; /* Se mantiene estático para dar un efecto flotante profesional */
+    
     color: #333333;
     scroll-behavior: smooth;
 }
@@ -52,7 +57,6 @@ h1, h2, h3, .logo {
     text-transform: uppercase;
 }
 
-/* Buscador centralizado estilo Sodimac */
 .search-bar {
     flex-grow: 1;
     max-width: 500px;
@@ -103,7 +107,7 @@ h1, h2, h3, .logo {
 }
 
 .btn-admin-access {
-    background: #4A148C; /* Morado oscuro distintivo para administración */
+    background: #4A148C;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -112,9 +116,9 @@ h1, h2, h3, .logo {
     font-weight: bold;
 }
 
-/* --- HERO BANNER OPTIMIZADO Y LIBRE DE COPYRIGHT --- */
+/* --- HERO BANNER --- */
 .hero-banner { 
-    background: linear-gradient(135px, #FFF0F5 0%, #F8BBD0 50%, #E1BEE7 100%);
+    background: linear-gradient(135px, #FFEBF0 0%, #FBC5D8 50%, #E8D3ED 100%);
     height: 320px; 
     display: flex; 
     justify-content: center; 
@@ -173,7 +177,7 @@ h1, h2, h3, .logo {
     margin: 10px auto 0;
 }
 
-/* --- GRILLA DE PRODUCTOS (ESTILO SODIMAC CLEAN) --- */
+/* --- GRILLA DE PRODUCTOS MODERNA (SIN IMÁGENES) --- */
 .product-grid { 
     display: grid; 
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
@@ -183,7 +187,7 @@ h1, h2, h3, .logo {
 .product-card { 
     background: #FFFFFF; 
     border: 1px solid #F8BBD0;
-    border-radius: 8px; 
+    border-radius: 12px; 
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -195,29 +199,33 @@ h1, h2, h3, .logo {
     box-shadow: 0 8px 20px rgba(244, 143, 177, 0.25); 
 }
 
-.product-card img { 
-    width: 100%; 
-    height: 260px; 
-    object-fit: cover; 
-    background: #FFF0F5;
+/* Reemplazo visual de las fotos rotas por un marco minimalista */
+.product-icon-frame {
+    height: 160px;
+    background: linear-gradient(45px, #FFEBEE, #FCE4EC);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 50px;
+    border-bottom: 1px dashed #F8BBD0;
 }
 
 .product-info {
-    padding: 15px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
 }
 
 .product-card h4 { 
-    font-size: 16px; 
+    font-size: 17px; 
     margin-bottom: 8px; 
-    color: #333;
-    font-weight: 500;
+    color: #311B92;
+    font-weight: 600;
 }
 
 .product-card .price { 
-    font-size: 20px; 
+    font-size: 22px; 
     font-weight: 700; 
     color: #D81B60; 
     margin-bottom: 15px;
@@ -233,8 +241,8 @@ h1, h2, h3, .logo {
     background: #D81B60; 
     color: white; 
     border: none; 
-    padding: 10px; 
-    border-radius: 4px; 
+    padding: 12px; 
+    border-radius: 6px; 
     cursor: pointer; 
     font-weight: bold;
     flex-grow: 1;
@@ -242,8 +250,8 @@ h1, h2, h3, .logo {
 }
 .btn-primary:hover { background: #C2185B; }
 
-.btn-edit { background: #FFB300; color: #fff; border: none; padding: 0 10px; border-radius: 4px; cursor: pointer; }
-.btn-delete { background: #E53935; color: #fff; border: none; padding: 0 10px; border-radius: 4px; cursor: pointer; }
+.btn-edit { background: #FFB300; color: #fff; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; }
+.btn-delete { background: #E53935; color: #fff; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; }
 
 /* --- SECCIÓN ADMINISTRADOR --- */
 .admin-section {
@@ -340,19 +348,12 @@ h1, h2, h3, .logo {
 .auth-switch { text-align: center; font-size: 13px; margin-top: 15px; }
 .auth-switch a { color: #D81B60; font-weight: bold; text-decoration: none; }
 
-/* Modal Detalle Mejorado */
-.detail-layout { max-width: 700px; }
-.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-
-@media (max-width: 600px) {
-    .detail-grid { grid-template-columns: 1fr; }
-    .admin-form { grid-template-columns: 1fr; }
-}
-
-.detail-img-container img { width: 100%; height: 300px; object-fit: cover; border-radius: 6px; }
-.detail-info { display: flex; flex-direction: column; justify-content: center; }
-.detail-info h2 { margin-bottom: 10px; color: #4A148C; }
-.description-text { color: #666; margin-bottom: 20px; line-height: 1.5; }
+/* Modal Detalle Centrado sin Foto */
+.detail-layout-clean { max-width: 500px; }
+.detail-info-centered { text-align: center; display: flex; flex-direction: column; gap: 12px; }
+.big-icon { font-size: 60px; margin-bottom: 5px; }
+.price-tag { font-size: 24px; font-weight: bold; color: #D81B60; }
+.description-text { color: #555; line-height: 1.6; font-size: 15px; }
 
 .w-100 { width: 100%; }
 .hide { display: none !important; }
@@ -371,7 +372,7 @@ footer {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- RESPONSIVE DESIGN (OPTIMIZACIÓN PARA CELULARES) --- */
+/* --- RESPONSIVE DESIGN --- */
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
@@ -382,7 +383,7 @@ footer {
     .search-bar {
         width: 100%;
         max-width: 100%;
-        order: 3; /* Pasa abajo para dejar el logo arriba */
+        order: 3;
     }
 
     .nav-actions {
@@ -398,24 +399,9 @@ footer {
         padding: 8px 10px;
     }
 
-    .hero-banner {
-        height: 260px;
-    }
-
-    .hero-content h1 {
-        font-size: 32px;
-    }
-
-    .product-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Tarjetas más compactas en celular */
-        gap: 15px;
-    }
-
-    .product-card img {
-        height: 160px; /* Imagen cuadrada más pequeña en móvil */
-    }
-    
-    .product-info h4 {
-        font-size: 14px;
-    }
+    .hero-banner { height: 220px; }
+    .hero-content h1 { font-size: 32px; }
+    .product-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+    .product-icon-frame { height: 110px; font-size: 40px; }
+    .product-info h4 { font-size: 14px; }
 }
