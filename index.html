@@ -22,7 +22,6 @@
 
             <div class="nav-actions">
                 <button class="btn-nav" id="btn-user-status">👤 Mi Cuenta</button>
-                <!-- Botón solicitado: Panel Admin -->
                 <button class="btn-admin-access" id="btn-admin-panel" style="display: none; background: #4A148C; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold;">🔑 Panel Admin</button>
             </div>
         </div>
@@ -45,17 +44,17 @@
         </section>
 
         <!-- ========================================================================= -->
-        <!-- 🚨 NUEVO MENÚ: MODAL DASHBOARD DE ADMINISTRACIÓN (PRODUCTOS Y PERSONAS) 🚨 -->
+        <!-- ⚙️ MODAL DASHBOARD DE ADMINISTRACIÓN (CON CARGA DE IMÁGENES) ⚙️ -->
         <!-- ========================================================================= -->
         <div id="modal-admin-dashboard" class="modal hide">
-            <div class="modal-content" style="max-width: 850px; width: 95%; border-top: 6px solid #4A148C;">
+            <div class="modal-content" style="max-width: 550px; width: 95%; border-top: 6px solid #4A148C;">
                 <span class="close-modal" id="btn-cerrar-admin-dashboard" style="font-size: 28px;">&times;</span>
                 <h2 style="color: #4A148C; font-family: 'Playfair Display', serif; margin-bottom: 5px;">⚙️ Panel de Control Principal</h2>
-                <p style="color: #666; font-size: 13px; margin-bottom: 20px;">Gestión global de inventario de bolsos y control de accesos de usuarios.</p>
+                <p style="color: #666; font-size: 13px; margin-bottom: 20px;">Gestión global de inventario y catálogo de bolsos.</p>
                 
                 <div class="admin-grid-layout" style="display: flex; gap: 25px; flex-wrap: wrap;">
                     
-                    <!-- BLOQUE A: Gestión de Catálogo -->
+                    <!-- Gestión de Catálogo -->
                     <div style="flex: 1; min-width: 300px; background: #F9F5FB; padding: 20px; border-radius: 8px; border: 1px solid #E1BEE7;">
                         <h3 style="margin-bottom: 15px; font-size: 16px; color: #311B92;">👜 Añadir / Editar Artículo</h3>
                         <form id="form-producto" style="display: flex; flex-direction: column; gap: 12px;">
@@ -72,27 +71,13 @@
                                 <label style="font-size: 12px; font-weight: bold;">Descripción del Producto</label>
                                 <textarea id="prod-desc" required placeholder="Detalles del material, tamaño, etc..." style="width: 100%; padding: 10px; border: 1px solid #F8BBD0; border-radius: 6px; font-family: inherit; height: 70px; resize: none;"></textarea>
                             </div>
+                            <!-- 📸 NUEVO CAMPO: SELECCIÓN DE FOTO REAL -->
+                            <div class="form-group">
+                                <label style="font-size: 12px; font-weight: bold;">Imagen de la Prenda (Opcional)</label>
+                                <input type="file" id="prod-imagen" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid #F8BBD0; border-radius: 6px; background: #fff; font-family: inherit; font-size: 12px;">
+                            </div>
                             <button type="submit" id="btn-submit-form" class="btn-primary" style="background: #4A148C; width: 100%; padding: 12px;">Guardar en Catálogo</button>
                         </form>
-                    </div>
-
-                    <!-- BLOQUE B: Gestión de Personas -->
-                    <div style="flex: 1; min-width: 300px; background: #FFF5F7; padding: 20px; border-radius: 8px; border: 1px solid #F8BBD0;">
-                        <h3 style="margin-bottom: 15px; font-size: 16px; color: #D81B60;">👥 Control de Personas y Permisos</h3>
-                        <div style="max-height: 240px; overflow-y: auto; background: white; border: 1px solid #F8BBD0; border-radius: 6px; padding: 5px;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid #D81B60; color: #D81B60; font-weight: bold;">
-                                        <th style="padding: 6px;">Usuario / Email</th>
-                                        <th style="padding: 6px;">Rol</th>
-                                        <th style="padding: 6px; text-align: center;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabla-usuarios-listado">
-                                    <!-- Cargado dinámicamente desde Firebase -->
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
 
                 </div>
@@ -132,7 +117,8 @@
             <div class="modal-content detail-layout-clean">
                 <span class="close-modal">&times;</span>
                 <div class="detail-info-centered">
-                    <span class="big-icon">👜</span>
+                    <!-- ID añadido para controlar dinámicamente si va emoticón o imagen real -->
+                    <div id="modal-detail-media-box"></div>
                     <h2 id="modal-detail-title"></h2>
                     <p id="modal-detail-price" class="price-tag"></p>
                     <p id="modal-detail-desc" class="description-text"></p>
