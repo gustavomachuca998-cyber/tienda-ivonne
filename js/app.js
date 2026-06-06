@@ -181,7 +181,7 @@ window.verDetalleProducto = function(id) {
 };
 
 // =========================================================================
-// --- CONTROL DE USUARIOS (SÚPER ADMIN) ---
+// --- CONTROL DE USUARIOS MEJORADO (MUESTRA TODO CON PROTECCIÓN) ---
 // =========================================================================
 function cargarUsuariosEnTiempoReal() {
     try {
@@ -190,19 +190,33 @@ function cargarUsuariosEnTiempoReal() {
             if (!tbody) return;
             tbody.innerHTML = "";
             
+            // Si realmente no hay ningún usuario en la colección de Firestore
+            if (snapshot.empty) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#999; padding:20px; font-style:italic;">No hay perfiles registrados en la base de datos todavía.</td></tr>`;
+                return;
+            }
+            
             snapshot.forEach((docSnap) => {
                 const u = docSnap.data();
-                if (u.correo === auth.currentUser.email) return; 
+                // Detecta si el usuario de la fila eres tú mismo
+                const esPropioUsuario = (u.correo === auth.currentUser.email);
 
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = "1px solid #E1BEE7";
                 tr.innerHTML = `
-                    <td style="padding: 6px;"><strong>${u.nombre}</strong><br><span style="color:#777; font-size:11px;">${u.correo}</span></td>
-                    <td style="padding: 6px;"><span style="padding: 2px 6px; border-radius:4px; font-weight:bold; font-size:11px; background:${u.rol === 'admin' ? '#CE93D8' : '#FFF'}">${u.rol.toUpperCase()}</span></td>
-                    <td style="padding: 6px; text-align: center; display:flex; gap: 4px; justify-content: center;">
-                        <button class="btn-cambiar-rol" data-id="${u.uid}" data-rol="${u.rol}" style="background:#4A148C; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 Rol</button>
-                        <button class="btn-reset-pass" data-email="${u.correo}" style="background:#FFB300; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔑</button>
-                        <button class="btn-eliminar-usuario" data-id="${u.uid}" style="background:#E53935; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🗑️</button>
+                    <td style="padding: 8px 6px;">
+                        <strong>${u.nombre} ${esPropioUsuario ? '<span style="color:#7B1FA2; font-size:11px;">(Tú)</span>' : ''}</strong><br>
+                        <span style="color:#777; font-size:11px;">${u.correo}</span>
+                    </td>
+                    <td style="padding: 8px 6px;"><span style="padding: 2px 6px; border-radius:4px; font-weight:bold; font-size:11px; background:${u.rol === 'admin' ? '#CE93D8' : '#FFF'}; border: 1px solid #CE93D8;">${u.rol.toUpperCase()}</span></td>
+                    <td style="padding: 8px 6px; text-align: center; display:flex; gap: 4px; justify-content: center; align-items: center;">
+                        ${esPropioUsuario ? `
+                            <span style="color:#888; font-size:11px; font-style:italic; padding: 4px;">Acceso Máster</span>
+                        ` : `
+                            <button class="btn-cambiar-rol" data-id="${u.uid}" data-rol="${u.rol}" title="Cambiar Rol" style="background:#4A148C; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 Rol</button>
+                            <button class="btn-reset-pass" data-email="${u.correo}" title="Restablecer Clave" style="background:#FFB300; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🔑</button>
+                            <button class="btn-eliminar-usuario" data-id="${u.uid}" title="Eliminar Usuario" style="background:#E53935; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; font-size:11px;">🗑️</button>
+                        `}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -210,7 +224,7 @@ function cargarUsuariosEnTiempoReal() {
             declararEventosControlUsuarios();
         });
     } catch (err) {
-        console.warn(err);
+        console.warn("Error cargando usuarios: ", err);
     }
 }
 
